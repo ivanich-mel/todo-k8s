@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ToDo List</title>
+    <!-- Подключаем Bootstrap -->
+    <link
+      rel="stylesheet"
+      href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+    <style>
+      .todo-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+      }
+      .todo-actions button {
+        margin-left: 5px;
+      }
+    </style>
+  </head>
+  <body class="container mt-5">
+    <h1 class="text-center mb-4">ToDo List</h1>
+
+    <!-- Секция для добавления новой задачи -->
+    <div class="card p-3 mb-4">
+      <h2>Add ToDo</h2>
+      <div class="form-group">
+        <input
+          type="text"
+          id="newTodoName"
+          class="form-control"
+          placeholder="Enter todo name"
+        />
+      </div>
+      <button onclick="createTodo()" class="btn btn-primary">Add ToDo</button>
+    </div>
+
+    <!-- Секция для отображения списка задач -->
+    <div class="card p-3">
+      <h2>ToDo List</h2>
+      <div id="todoList" class="list-group"></div>
+    </div>
+
+    <!-- Подключаем jQuery и Bootstrap JavaScript -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <script>
+      const baseUrl = "http://localhost:8080"; // Замените на URL вашего backend
+
+      // Создание новой задачи
+      async function createTodo() {
+        const name = document.getElementById("newTodoName").value;
+        if (!name) {
+          alert("Please enter a todo name");
+          return;
+        }
+
+        const response = await fetch(`${baseUrl}/todo`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name }),
+        });
+
+        if (response.ok) {
+          document.getElementById("newTodoName").value = "";
+          getTodoList(); // обновляем список
+        } else {
+          alert("Failed to create ToDo");
+        }
+      }
+
+      // Получение списка задач
+      async function getTodoList() {
+        const response = await fetch(`${baseUrl}/listtodo`, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        const todoListContainer = document.getElementById("todoList");
+        todoListContainer.innerHTML = ""; // очищаем список
+
+        if (response.ok) {
+          const todos = await response.json();
+          todos.forEach((todo) => {
+            const todoItem = document.createElement("div");
+            todoItem.className = "list-group-item todo-item";
+
+            const todoText = document.createElement("span");
+            todoText.textContent = todo.name;
+
+            const todoActions = document.createElement("div");
+            todoActions.className = "todo-actions";
+
+            // Кнопка для редактирования
+            const editButton = document.createElement("button");
+            editButton.className = "btn btn-sm btn-warning";
+            editButton.innerHTML = "✏️";
+            editButton.onclick = () => editTodoPrompt(todo);
+
+            // Кнопка для удаления
+            const deleteButton = document.createElement("button");
+            deleteButton.className = "btn btn-sm btn-danger";
+            deleteButton.innerHTML = "❌";
+            deleteButton.onclick = () => deleteTodo(todo.id);
+
+            todoActions.appendChild(editButton);
+            todoActions.appendChild(deleteButton);
+
+            todoItem.appendChild(todoText);
+            todoItem.appendChild(todoActions);
+            todoListContainer.appendChild(todoItem);
+          });
+        } else {
+          alert("Failed to fetch ToDo list");
+        }
+      }
+
+      // Удаление задачи
+      async function deleteTodo(id) {
+        const response = await fetch(`${baseUrl}/todo?id=${id}`, {
+          method: "DELETE",
+        });
+
+        if (response.ok) {
+          getTodoList(); // обновляем список
+        } else {
+          alert("Failed to delete ToDo");
+        }
+      }
+
+      // Функция для редактирования задачи
+      async function editTodoPrompt(todo) {
+        const newName = prompt("Edit ToDo", todo.name);
+        if (newName === null || newName === "") return; // Если отменено или пустое значение
+
+        const response = await fetch(`${baseUrl}/todo`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: todo.id, name: newName }),
+        });
+
+        if (response.ok) {
+          getTodoList(); // обновляем список
+        } else {
+          alert("Failed to update ToDo");
+        }
+      }
+
+      // Получение списка задач при загрузке страницы
+      window.onload = getTodoList;
+    </script>
+  </body>
+</html>
