@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: todo-list-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: todo-list-api
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: todo-list-api
+    spec:
+      initContainers:
+        - name: init-postgres
+          image: busybox
+          command:
+            [
+              "sh",
+              "-c",
+              'until nc -z -v -w30 postgres-service 5432; do echo "Waiting for Postgres..."; sleep 5; done',
+            ]
+      containers:
+        - image: todolist-api:0.0.1
+          name: todolist-api
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+            initialDelaySeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+            limits:
+              cpu: 100m
+              memory: 100Mi
+          env:
+            - name: PG_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: todolist-api
+                  key: PG_HOST
+            - name: PG_USER
+              valueFrom:
+                secretKeyRef:
+                  name: todolist-api
+                  key: PG_USER
+            - name: PG_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: todolist-api
+                  key: PG_PASS
+            - name: PG_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: todolist-api
+                  key: PG_PORT
